@@ -1,0 +1,173 @@
+{
+  "entities": {
+    "Transaction": {
+      "title": "Transaction",
+      "description": "A financial transaction.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["income", "expense"] },
+        "category": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "isBill": { "type": "boolean" },
+        "notes": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "description", "amount", "type", "category", "date", "userId"]
+    },
+    "RecurringTransaction": {
+      "title": "RecurringTransaction",
+      "description": "A recurring financial transaction.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["income", "expense"] },
+        "category": { "type": "string" },
+        "frequency": { "type": "string", "enum": ["daily", "weekly", "monthly", "yearly"] },
+        "startDate": { "type": "string", "format": "date" },
+        "lastProcessedDate": { "type": "string", "format": "date" },
+        "notes": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "description", "amount", "type", "category", "frequency", "startDate", "lastProcessedDate", "userId"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "A transaction category.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "icon": { "type": "string" },
+        "type": { "type": "string", "enum": ["income", "expense"] },
+        "color": { "type": "string" },
+        "group": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "name", "icon", "type", "color", "userId"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "A scheduled task.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "reminderTime": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "title", "date", "startTime", "endTime", "completed", "userId"]
+    },
+    "Target": {
+      "title": "Target",
+      "description": "A daily target.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "targetValue": { "type": "number" },
+        "currentValue": { "type": "number" },
+        "unit": { "type": "string" },
+        "category": { "type": "string", "enum": ["health", "work", "personal", "finance"] },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "title", "targetValue", "currentValue", "unit", "category", "userId"]
+    },
+    "UnlockedAchievement": {
+      "title": "UnlockedAchievement",
+      "description": "An unlocked achievement.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "unlockedAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "unlockedAt", "userId"]
+    },
+    "NotificationSetting": {
+      "title": "NotificationSetting",
+      "description": "A notification setting.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["schedule", "bill", "target"] },
+        "enabled": { "type": "boolean" },
+        "time": { "type": "string" },
+        "frequency": { "type": "string", "enum": ["daily", "weekly", "once"] },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "type", "enabled", "frequency", "userId"]
+    },
+    "DailyQuote": {
+      "title": "DailyQuote",
+      "description": "A daily quote.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "text": { "type": "string" },
+        "author": { "type": "string" },
+        "field": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "text", "author", "field", "date", "userId"]
+    },
+    "AIPlan": {
+      "title": "AIPlan",
+      "description": "An AI generated productivity plan.",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "items": { "type": "array" },
+        "userId": { "type": "string" }
+      },
+      "required": ["date", "items", "userId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": { "$ref": "Transaction" },
+      "description": "Transactions for a user."
+    },
+    "/users/{userId}/recurring_transactions/{transactionId}": {
+      "schema": { "$ref": "RecurringTransaction" },
+      "description": "Recurring transactions for a user."
+    },
+    "/users/{userId}/categories/{categoryId}": {
+      "schema": { "$ref": "Category" },
+      "description": "Categories for a user."
+    },
+    "/users/{userId}/tasks/{taskId}": {
+      "schema": { "$ref": "Task" },
+      "description": "Tasks for a user."
+    },
+    "/users/{userId}/targets/{targetId}": {
+      "schema": { "$ref": "Target" },
+      "description": "Targets for a user."
+    },
+    "/users/{userId}/unlocked_achievements/{achievementId}": {
+      "schema": { "$ref": "UnlockedAchievement" },
+      "description": "Unlocked achievements for a user."
+    },
+    "/users/{userId}/notification_settings/{settingId}": {
+      "schema": { "$ref": "NotificationSetting" },
+      "description": "Notification settings for a user."
+    },
+    "/users/{userId}/daily_quote/current": {
+      "schema": { "$ref": "DailyQuote" },
+      "description": "Daily quote for a user."
+    },
+    "/users/{userId}/ai_plan/current": {
+      "schema": { "$ref": "AIPlan" },
+      "description": "AI plan for a user."
+    }
+  }
+}

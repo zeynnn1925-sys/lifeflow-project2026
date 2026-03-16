@@ -1,0 +1,227 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function uidUnchanged() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == resource.data.userId;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function validStringLength(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data) ||
+             (request.resource.data[field] is string &&
+              request.resource.data[field].size() >= minLen &&
+              request.resource.data[field].size() <= maxLen);
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}$");
+    }
+
+    function isValidDateTimeString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    function isValidTime(timeStr) {
+      return timeStr is string && (timeStr == "" || timeStr.matches("^\\d{2}:\\d{2}$"));
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidTransaction(data) {
+      return hasRequiredFields(['id', 'description', 'amount', 'type', 'category', 'date', 'userId']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
+             data.description is string && data.description.size() > 0 && data.description.size() < 500 &&
+             data.amount is number &&
+             data.type in ['income', 'expense'] &&
+             data.category is string && data.category.size() > 0 && data.category.size() < 100 &&
+             isValidDateTimeString(data.date) &&
+             (!( 'isBill' in data ) || data.isBill is bool) &&
+             isValidOptionalString('notes', 0, 1000) &&
+             data.userId == request.auth.uid;
+    }
+
+    function isValidRecurringTransaction(data) {
+      return hasRequiredFields(['id', 'description', 'amount', 'type', 'category', 'frequency', 'startDate', 'lastProcessedDate', 'userId']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
+             data.description is string && data.description.size() > 0 && data.description.size() < 500 &&
+             data.amount is number &&
+             data.type in ['income', 'expense'] &&
+             data.category is string && data.category.size() > 0 && data.category.size() < 100 &&
+             data.frequency in ['daily', 'weekly', 'monthly', 'yearly'] &&
+             isValidDateTimeString(data.startDate) &&
+             isValidDateTimeString(data.lastProcessedDate) &&
+             isValidOptionalString('notes', 0, 1000) &&
+             data.userId == request.auth.uid;
+    }
+
+    function isValidCategory(data) {
+      return hasRequiredFields(['id', 'name', 'icon', 'type', 'color', 'userId']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.icon is string && data.icon.size() > 0 && data.icon.size() < 100 &&
+             data.type in ['income', 'expense'] &&
+             data.color is string && data.color.size() > 0 && data.color.size() < 50 &&
+             isValidOptionalString('group', 0, 100) &&
+             data.userId == request.auth.uid;
+    }
+
+    function isValidTask(data) {
+      return hasRequiredFields(['id', 'title', 'date', 'startTime', 'endTime', 'completed', 'userId']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 500 &&
+             isValidDateString(data.date) &&
+             isValidTime(data.startTime) &&
+             isValidTime(data.endTime) &&
+             data.completed is bool &&
+             (!( 'reminderTime' in data ) || isValidTime(data.reminderTime)) &&
+             data.userId == request.auth.uid;
+    }
+
+    function isValidTarget(data) {
+      return hasRequiredFields(['id', 'title', 'targetValue', 'currentValue', 'unit', 'category', 'userId']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.targetValue is number && data.targetValue >= 0 &&
+             data.currentValue is number && data.currentValue >= 0 &&
+             data.unit is string && data.unit.size() > 0 && data.unit.size() < 50 &&
+             data.category in ['health', 'work', 'personal', 'finance'] &&
+             data.userId == request.auth.uid;
+    }
+
+    function isValidUnlockedAchievement(data) {
+      return hasRequiredFields(['id', 'unlockedAt', 'userId']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
+             isValidDateTimeString(data.unlockedAt) &&
+             data.userId == request.auth.uid;
+    }
+
+    function isValidNotificationSetting(data) {
+      return hasRequiredFields(['id', 'type', 'enabled', 'frequency', 'userId']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
+             data.type in ['schedule', 'bill', 'target'] &&
+             data.enabled is bool &&
+             (!( 'time' in data ) || isValidTime(data.time)) &&
+             data.frequency in ['daily', 'weekly', 'once'] &&
+             data.userId == request.auth.uid;
+    }
+
+    function isValidDailyQuote(data) {
+      return hasRequiredFields(['id', 'text', 'author', 'field', 'date', 'userId']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
+             data.text is string && data.text.size() > 0 && data.text.size() < 2000 &&
+             data.author is string && data.author.size() > 0 && data.author.size() < 200 &&
+             data.field is string && data.field.size() > 0 && data.field.size() < 100 &&
+             isValidDateString(data.date) &&
+             data.userId == request.auth.uid;
+    }
+
+    function isValidAIPlan(data) {
+      return hasRequiredFields(['date', 'items', 'userId']) &&
+             isValidDateString(data.date) &&
+             data.items is list && data.items.size() <= 100 &&
+             data.userId == request.auth.uid;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      match /transactions/{transactionId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidTransaction(request.resource.data) && uidUnchanged();
+        allow update: if isOwner(userId) && isValidTransaction(request.resource.data) && uidNotModified();
+        allow delete: if isOwner(userId);
+      }
+
+      match /recurring_transactions/{transactionId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidRecurringTransaction(request.resource.data) && uidUnchanged();
+        allow update: if isOwner(userId) && isValidRecurringTransaction(request.resource.data) && uidNotModified();
+        allow delete: if isOwner(userId);
+      }
+
+      match /categories/{categoryId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidCategory(request.resource.data) && uidUnchanged();
+        allow update: if isOwner(userId) && isValidCategory(request.resource.data) && uidNotModified();
+        allow delete: if isOwner(userId);
+      }
+
+      match /tasks/{taskId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidTask(request.resource.data) && uidUnchanged();
+        allow update: if isOwner(userId) && isValidTask(request.resource.data) && uidNotModified();
+        allow delete: if isOwner(userId);
+      }
+
+      match /targets/{targetId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidTarget(request.resource.data) && uidUnchanged();
+        allow update: if isOwner(userId) && isValidTarget(request.resource.data) && uidNotModified();
+        allow delete: if isOwner(userId);
+      }
+
+      match /unlocked_achievements/{achievementId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidUnlockedAchievement(request.resource.data) && uidUnchanged();
+        allow update: if isOwner(userId) && isValidUnlockedAchievement(request.resource.data) && uidNotModified();
+        allow delete: if isOwner(userId);
+      }
+
+      match /notification_settings/{settingId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidNotificationSetting(request.resource.data) && uidUnchanged();
+        allow update: if isOwner(userId) && isValidNotificationSetting(request.resource.data) && uidNotModified();
+        allow delete: if isOwner(userId);
+      }
+
+      match /daily_quote/current {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidDailyQuote(request.resource.data) && uidUnchanged();
+        allow update: if isOwner(userId) && isValidDailyQuote(request.resource.data) && uidNotModified();
+        allow delete: if isOwner(userId);
+      }
+
+      match /ai_plan/current {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidAIPlan(request.resource.data) && uidUnchanged();
+        allow update: if isOwner(userId) && isValidAIPlan(request.resource.data) && uidNotModified();
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}
